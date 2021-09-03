@@ -314,7 +314,8 @@ bool autoWin = false;
 void setup()
 {
 
-
+  UCSR0B |= _BV(TXEN0);
+  UDR0='X';  
   // Temporary random seed is our tile's serial number
   // At least it is random per-tile
   randState = getSerialNumberByte(0);
@@ -334,7 +335,6 @@ void setup()
   }
 */
 
-  //setColor(GREEN);
   showAnimation_Init();
 }
 
@@ -1286,6 +1286,9 @@ void __attribute__((noinline)) setYellowOnState(byte *state)
 
 void renderAnimationStateOnFace(byte f)
 {
+
+  UDR0='R';  
+  
   FaceStateGame *faceStateGame = &faceStatesGame[f];
 
   byte r = getColorFromState(colorState[0], f);
@@ -1378,16 +1381,23 @@ void renderAnimationStateOnFace(byte f)
       overlayR = 1;
       /* fall through */
     case AnimCommand_FadeOutBaseIfOverlayR:
+    
       colorRGB[0] = colorRGB[1] = colorRGB[2] = 0;
       if (overlayR)
       {
+        t=255;
         colorRGB[0] = lerpColor(r, 0, t);
         colorRGB[1] = lerpColor(g, 0, t);
         colorRGB[2] = lerpColor(b, 0, t);
       }
+      
+    UDR0=overlayR; 
+      
       break;
       
     case AnimCommand_RandomRotateBaseAndOverlayR:
+      UDR0='R';  
+
       colorState[0] = randGetByte();
       colorState[1] = randGetByte();
       colorState[2] = randGetByte();
@@ -1397,7 +1407,7 @@ void renderAnimationStateOnFace(byte f)
       startNextCommand = true;
       break;
 
-    case AnimCommand_RandomToolOnBase:
+    case AnimCommand_RandomToolOnBase: {
       // TODO : Change to only show tools appropriate to the selected difficulty
       byte randByte = randGetByte() | 0x2;
       byte toolPattern = (randByte & 0x3E) >> (randByte & 0x1);
@@ -1405,9 +1415,18 @@ void renderAnimationStateOnFace(byte f)
       
       paused = true;
       startNextCommand = true;
+      }
       break;
 
-    case Command_None:
+    case AnimCommand_BaseAndOverlay:
+      /* Empty */
+      break;
+            
+    case AnimCommand_Loop:
+      /* Empty */
+      break;
+          
+    case AnimCommand_Done:
       /* Empty */
       break;
   }
@@ -1451,11 +1470,15 @@ void render()
 {
   setColor(OFF);
 
+
   FOREACH_FACE(f)
   {
     renderAnimationStateOnFace(f);
   }
 
+
+ //   renderAnimationStateOnFace(0);
+    
 #if RENDER_DEBUG_AND_ERRORS
   FOREACH_FACE(f)
   {
